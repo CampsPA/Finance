@@ -1,3 +1,6 @@
+
+'''Need to be able to input values as raw numbers and percentage in the future periods'''
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -140,31 +143,30 @@ class Analysis:
 
     
     def populate_assumptions_future(self):
-        metrics = ['Capital Asset Turnover Ratio                           (x)',
+        # Define metrics that should be formatted as percentages and raw numbers
+        percentage_metrics = [
+            'Sales Growth', 
+            'Gross Margin',
+            'Distribution Expense (Percent of Sales)',
+            'Research Expense (Percent of Sales)',
+           'Depreciation (Percent of Sales)',
+           'Long-Term Debt Interest Rate (Average Debt)',
+           'Tax Rate (Percent of EBT)', 
+           'Income Tax Payable (Percent of Taxes) (Days)',
+           'Dividend Payout Ratio '
+         ]
+    
+        raw_number_metrics = [
+            'Marketing & Admin Expense (Fixed Cost)',
+            'Capital Asset Turnover Ratio                           (x)',
            'Receivable Days (Sales Basis)                     (Days)',
            'Inventory Days (COGS Basis)                       (Days)',
-           'Payable Days (COGS Basis)                          (Days)']
-        '''
-        metrics = ['Sales Growth',
-           'Gross Margin', 
-           'Distribution Expense (Percent of Sales)', 
-           'Marketing & Admin Expense (Fixed Cost)',
-           'Research Expense (Percent of Sales)',
-           'Depreciation (Percent of Sales)', 
-           'Long-Term Debt Interest Rate (Average Debt)',
-           'Tax Rate (Percent of EBT)',
-           'Capital Asset Turnover Ratio (x)',
-           'Receivable Days (Sales Basis) (Days)',
-           'Inventory Days (COGS Basis) (Days)',
-           'Payable Days (COGS Basis) (Days)',
-           'Income Tax Payable (Percent of Taxes) (Days)',
+           'Payable Days (COGS Basis)                          (Days)',
            'Long Term Debt',
-           'Common Share Capital',
-            'Dividend Payout Ratio'
-          ]
-          '''
-        
-         # Function to get user input
+           'Common Share Capital'
+        ]
+
+        # Function to get user input
         def get_user_input(prompt):
             while True:
                 try:
@@ -173,32 +175,38 @@ class Analysis:
                 except ValueError:
                     print("Invalid input. Please enter a numerical value.")
 
-        # Function to format values based on type
+        # Function to format values
         def format_value(value, is_percentage=False):
             if is_percentage:
                 return "{:.1%}".format(value)
             else:
-                return "{:.2f}".format(value)  # For raw numbers with no decimal places
-    
+                return "{:.2f}".format(value)
 
-        # Get user inputs for each metric and year
-        for metric in metrics:
-            if metric in metrics:
-                is_percentage = True
-            else:
-                is_percentage = False
-
+        for metric in percentage_metrics:
             same_value = input(f"Do you want to enter the same value for all years for {metric}? (yes/no): ").strip().lower()
             
             if same_value == 'yes':
                 value = get_user_input(f"Enter {metric} (as a decimal, e.g., 0.06 for 6%): ")
-                formatted_value = format_value(value, is_percentage)
+                formatted_value = format_value(value, is_percentage=True)
                 self.assumptions.loc[metric, :] = formatted_value
             else:
                 for year in self.years:
-                    prompt = f"Enter {metric} for {year} (as a decimal, e.g., 0.06 for 6%): " if is_percentage else f"Enter {metric} for {year}: "
+                    prompt = f"Enter {metric} for {year} (as a decimal, e.g., 0.06 for 6%): "
                     value = get_user_input(prompt)
-                    self.assumptions.at[metric, year] = format_value(value, is_percentage)
+                    self.assumptions.at[metric, year] = format_value(value, is_percentage=True)
+
+        for metric in raw_number_metrics:
+            same_value = input(f"Do you want to enter the same value for all years for {metric}? (yes/no): ").strip().lower()
+            
+            if same_value == 'yes':
+                value = get_user_input(f"Enter {metric}: ")
+                formatted_value = format_value(value, is_percentage=False)
+                self.assumptions.loc[metric, :] = formatted_value
+            else:
+                for year in self.years:
+                    prompt = f"Enter {metric} for {year}: "
+                    value = get_user_input(prompt)
+                    self.assumptions.at[metric, year] = format_value(value, is_percentage=False)
 
 
 ###############################################################################################
