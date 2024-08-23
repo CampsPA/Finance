@@ -1,12 +1,17 @@
+
+
+'''https://chatgpt.com/share/8cca2fdf-c7e7-431a-b743-a8eb853cdd9a'''
+
 import sys
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from sqlalchemy import create_engine, Column, String, Integer, Float, DECIMAL, ForeignKey
+from sqlalchemy import create_engine, Column, String, Integer, DECIMAL, ForeignKey
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship,session
 import psycopg2
 from psycopg2 import sql
+from decimal import Decimal
 
 
 
@@ -57,10 +62,10 @@ cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(new_db_name)))
 cur.close()
 conn.close()
 
-# # Connect to the new database
-# db_params['dbname'] = new_db_name
-# conn = psycopg2.connect(**db_params)
-# cur = conn.cursor()
+# Connect to the new database
+db_params['dbname'] = new_db_name
+conn = psycopg2.connect(**db_params)
+cur = conn.cursor()
 
 
 
@@ -162,106 +167,104 @@ class Analysis:
     def populate_assumptions_historical(self):
         # Helper method to format values
         def format_decimals(value):
-            return round(float(value) * 100, 2)  # Format to decimals 
+            return round(Decimal(value) * 100, 2)  # Format to decimals 
+            
         
 
         def format_fixed_cost(value):
             try:
-                return "{:.2f}".format(float(value))  # Format as a fixed cost with three decimal places
+                return "{:.2f}".format(Decimal(value))  # Format as a fixed cost with three decimal places
             except ValueError:
-                return "N/A"  # Handle cases where the value cannot be converted to float
+                return "N/A"  # Handle cases where the value cannot be converted to Decimal
         
-        #Sales growth
-        # Sales growth
-        self.sg_year_1 = format_decimals(float(self.income_statement.at['Revenues', 'Year1']) / float(self.income_statement.at['Revenues', 'Year2']) - 1)
-        self.sg_year_0 = format_decimals(float(self.income_statement.at['Revenues', 'Year0']) / float(self.income_statement.at['Revenues', 'Year1']) - 1)
+        # Sales Growth
+        self.sg_year_1 = format_decimals(Decimal(float(self.income_statement.at['Revenues', 'Year1'])) / Decimal(float(self.income_statement.at['Revenues', 'Year2'])) - 1)
+        self.sg_year_0 = format_decimals(Decimal(float(self.income_statement.at['Revenues', 'Year0'])) / Decimal(float(self.income_statement.at['Revenues', 'Year1'])) - 1)
 
         # Gross Margin
-        self.gm_year_2 = format_decimals(float(self.income_statement.at['Gross Profit', 'Year2']) / float(self.income_statement.at['Revenues', 'Year2']))
-        self.gm_year_1 = format_decimals(float(self.income_statement.at['Gross Profit', 'Year1']) / float(self.income_statement.at['Revenues', 'Year1']))
-        self.gm_year_0 = format_decimals(float(self.income_statement.at['Gross Profit', 'Year0']) / float(self.income_statement.at['Revenues', 'Year0']))
+        self.gm_year_2 = format_decimals(Decimal(float(self.income_statement.at['Gross Profit', 'Year2'])) / Decimal(float(self.income_statement.at['Revenues', 'Year2'])))
+        self.gm_year_1 = format_decimals(Decimal(float(self.income_statement.at['Gross Profit', 'Year1'])) / Decimal(float(self.income_statement.at['Revenues', 'Year1'])))
+        self.gm_year_0 = format_decimals(Decimal(float(self.income_statement.at['Gross Profit', 'Year0'])) / Decimal(float(self.income_statement.at['Revenues', 'Year0'])))
 
         # Distribution Expense (Percent of Sales)
-        self.dist_exp_2 = format_decimals(float(self.income_statement.at['Distribution Expenses', 'Year2']) / float(self.income_statement.at['Revenues', 'Year2']) * -1)
-        self.dist_exp_1 = format_decimals(float(self.income_statement.at['Distribution Expenses', 'Year1']) / float(self.income_statement.at['Revenues', 'Year1']) * -1)
-        self.dist_exp_0 = format_decimals(float(self.income_statement.at['Distribution Expenses', 'Year0']) / float(self.income_statement.at['Revenues', 'Year0']) * -1)
+        self.dist_exp_2 = format_decimals(Decimal(float(self.income_statement.at['Distribution Expenses', 'Year2'])) / Decimal(float(self.income_statement.at['Revenues', 'Year2'])) * -1)
+        self.dist_exp_1 = format_decimals(Decimal(float(self.income_statement.at['Distribution Expenses', 'Year1'])) / Decimal(float(self.income_statement.at['Revenues', 'Year1'])) * -1)
+        self.dist_exp_0 = format_decimals(Decimal(float(self.income_statement.at['Distribution Expenses', 'Year0'])) / Decimal(float(self.income_statement.at['Revenues', 'Year0'])) * -1)
 
         # Marketing & Admin Expense (Fixed Cost)
-        self.mkt_admin_2 = format_fixed_cost(float(self.income_statement.at['Marketing and Administration', 'Year2']) * -1)
-        self.mkt_admin_1 = format_fixed_cost(float(self.income_statement.at['Marketing and Administration', 'Year1']) * -1)
-        self.mkt_admin_0 = format_fixed_cost(float(self.income_statement.at['Marketing and Administration', 'Year0']) * -1)
+        self.mkt_admin_2 = format_fixed_cost(Decimal(float(self.income_statement.at['Marketing and Administration', 'Year2'])) * -1)
+        self.mkt_admin_1 = format_fixed_cost(Decimal(float(self.income_statement.at['Marketing and Administration', 'Year1'])) * -1)
+        self.mkt_admin_0 = format_fixed_cost(Decimal(float(self.income_statement.at['Marketing and Administration', 'Year0'])) * -1)
 
         # Research Expense (Percent of Sales)
-        self.res_exp_2 = format_decimals(float(self.income_statement.at['Research and Development', 'Year2']) / float(self.income_statement.at['Revenues', 'Year2']) * -1)
-        self.res_exp_1 = format_decimals(float(self.income_statement.at['Research and Development', 'Year1']) / float(self.income_statement.at['Revenues', 'Year1']) * -1)
-        self.res_exp_0 = format_decimals(float(self.income_statement.at['Research and Development', 'Year0']) / float(self.income_statement.at['Revenues', 'Year0']) * -1)
+        self.res_exp_2 = format_decimals(Decimal(float(self.income_statement.at['Research and Development', 'Year2'])) / Decimal(float(self.income_statement.at['Revenues', 'Year2'])) * -1)
+        self.res_exp_1 = format_decimals(Decimal(float(self.income_statement.at['Research and Development', 'Year1'])) / Decimal(float(self.income_statement.at['Revenues', 'Year1'])) * -1)
+        self.res_exp_0 = format_decimals(Decimal(float(self.income_statement.at['Research and Development', 'Year0'])) / Decimal(float(self.income_statement.at['Revenues', 'Year0'])) * -1)
 
         # Depreciation
-        self.depreciation_2 = format_decimals(float(self.income_statement.at['Depreciation', 'Year2']) / float(self.income_statement.at['Revenues', 'Year2']) * -1)
-        self.depreciation_1 = format_decimals(float(self.income_statement.at['Depreciation', 'Year1']) / float(self.income_statement.at['Revenues', 'Year1']) * -1)
-        self.depreciation_0 = format_decimals(float(self.income_statement.at['Depreciation', 'Year0']) / float(self.income_statement.at['Revenues', 'Year0']) * -1)
+        self.depreciation_2 = format_decimals(Decimal(float(self.income_statement.at['Depreciation', 'Year2'])) / Decimal(float(self.income_statement.at['Revenues', 'Year2'])) * -1)
+        self.depreciation_1 = format_decimals(Decimal(float(self.income_statement.at['Depreciation', 'Year1'])) / Decimal(float(self.income_statement.at['Revenues', 'Year1'])) * -1)
+        self.depreciation_0 = format_decimals(Decimal(float(self.income_statement.at['Depreciation', 'Year0'])) / Decimal(float(self.income_statement.at['Revenues', 'Year0'])) * -1)
 
         # Long-Term Debt Interest Rate
-        self.long_term_int_2 = format_decimals(float(self.income_statement.at['Interest', 'Year2']) / ((float(self.balance_sheet.at['Long-Term Debt', 'Year2']) + float(self.balance_sheet.at['Long-Term Debt', 'Year2'])) / 2) * -1)
-        self.long_term_int_1 = format_decimals(float(self.income_statement.at['Interest', 'Year1']) / ((float(self.balance_sheet.at['Long-Term Debt', 'Year1']) + float(self.balance_sheet.at['Long-Term Debt', 'Year1'])) / 2) * -1)
-        self.long_term_int_0 = format_decimals(float(self.income_statement.at['Interest', 'Year0']) / ((float(self.balance_sheet.at['Long-Term Debt', 'Year0']) + float(self.balance_sheet.at['Long-Term Debt', 'Year0'])) / 2) * -1)
+        self.long_term_int_2 = format_decimals(Decimal(float(self.income_statement.at['Interest', 'Year2'])) / ((Decimal(float(self.balance_sheet.at['Long-Term Debt', 'Year2'])) + Decimal(float(self.balance_sheet.at['Long-Term Debt', 'Year2']))) / 2) * -1)
+        self.long_term_int_1 = format_decimals(Decimal(float(self.income_statement.at['Interest', 'Year1'])) / ((Decimal(float(self.balance_sheet.at['Long-Term Debt', 'Year1'])) + Decimal(float(self.balance_sheet.at['Long-Term Debt', 'Year1']))) / 2) * -1)
+        self.long_term_int_0 = format_decimals(Decimal(float(self.income_statement.at['Interest', 'Year0'])) / ((Decimal(float(self.balance_sheet.at['Long-Term Debt', 'Year0'])) + Decimal(float(self.balance_sheet.at['Long-Term Debt', 'Year0']))) / 2) * -1)
 
         # Tax Rate (Percent of EBT)
-        self.tax_perc_EBT_2 = format_decimals(float(self.income_statement.at['Taxes', 'Year2']) / float(self.income_statement.at['Earnings Before Taxes', 'Year2']) * -1)
-        self.tax_perc_EBT_1 = format_decimals(float(self.income_statement.at['Taxes', 'Year1']) / float(self.income_statement.at['Earnings Before Taxes', 'Year1']) * -1)
-        self.tax_perc_EBT_0 = format_decimals(float(self.income_statement.at['Taxes', 'Year0']) / float(self.income_statement.at['Earnings Before Taxes', 'Year0']) * -1)
+        self.tax_perc_EBT_2 = format_decimals(Decimal(float(self.income_statement.at['Taxes', 'Year2'])) / Decimal(float(self.income_statement.at['Earnings Before Taxes', 'Year2'])) * -1)
+        self.tax_perc_EBT_1 = format_decimals(Decimal(float(self.income_statement.at['Taxes', 'Year1'])) / Decimal(float(self.income_statement.at['Earnings Before Taxes', 'Year1'])) * -1)
+        self.tax_perc_EBT_0 = format_decimals(Decimal(float(self.income_statement.at['Taxes', 'Year0'])) / Decimal(float(self.income_statement.at['Earnings Before Taxes', 'Year0'])) * -1)
 
         # Capital Asset Turnover Ratio
-        self.asset_tur_2 = format_fixed_cost(float(self.income_statement.at['Revenues', 'Year2']) / float(self.balance_sheet.at['Property Plant and Equipment', 'Year2']))
-        self.asset_tur_1 = format_fixed_cost(float(self.income_statement.at['Revenues', 'Year1']) / float(self.balance_sheet.at['Property Plant and Equipment', 'Year1']))
-        self.asset_tur_0 = format_fixed_cost(float(self.income_statement.at['Revenues', 'Year0']) / float(self.balance_sheet.at['Property Plant and Equipment', 'Year0']))
+        self.asset_tur_2 = format_fixed_cost(Decimal(float(self.income_statement.at['Revenues', 'Year2'])) / Decimal(float(self.balance_sheet.at['Property Plant and Equipment', 'Year2'])))
+        self.asset_tur_1 = format_fixed_cost(Decimal(float(self.income_statement.at['Revenues', 'Year1'])) / Decimal(float(self.balance_sheet.at['Property Plant and Equipment', 'Year1'])))
+        self.asset_tur_0 = format_fixed_cost(Decimal(float(self.income_statement.at['Revenues', 'Year0'])) / Decimal(float(self.balance_sheet.at['Property Plant and Equipment', 'Year0'])))
 
         # Receivables Days
-        self.receivables_days_2 = format_fixed_cost(float(self.balance_sheet.at['Trade and Other Receivables', 'Year2']) / float(self.income_statement.at['Revenues', 'Year2']) * 365)
-        self.receivables_days_1 = format_fixed_cost(float(self.balance_sheet.at['Trade and Other Receivables', 'Year1']) / float(self.income_statement.at['Revenues', 'Year1']) * 365)
-        self.receivables_days_0 = format_fixed_cost(float(self.balance_sheet.at['Trade and Other Receivables', 'Year0']) / float(self.income_statement.at['Revenues', 'Year0']) * 365)
+        self.receivables_days_2 = format_fixed_cost(Decimal(float(self.balance_sheet.at['Trade and Other Receivables', 'Year2'])) / Decimal(float(self.income_statement.at['Revenues', 'Year2'])) * 365)
+        self.receivables_days_1 = format_fixed_cost(Decimal(float(self.balance_sheet.at['Trade and Other Receivables', 'Year1'])) / Decimal(float(self.income_statement.at['Revenues', 'Year1'])) * 365)
+        self.receivables_days_0 = format_fixed_cost(Decimal(float(self.balance_sheet.at['Trade and Other Receivables', 'Year0'])) / Decimal(float(self.income_statement.at['Revenues', 'Year0'])) * 365)
 
         # Inventory Days (COGS Basis) (Days)
-        self.inv_days_2 = format_fixed_cost(float(self.balance_sheet.at['Inventories', 'Year2']) / float(self.income_statement.at['Cost of Goods Sold', 'Year2']) * 365 * -1)
-        self.inv_days_1 = format_fixed_cost(float(self.balance_sheet.at['Inventories', 'Year1']) / float(self.income_statement.at['Cost of Goods Sold', 'Year1']) * 365 * -1)
-        self.inv_days_0 = format_fixed_cost(float(self.balance_sheet.at['Inventories', 'Year0']) / float(self.income_statement.at['Cost of Goods Sold', 'Year0']) * 365 * -1)
+        self.inv_days_2 = format_fixed_cost(Decimal(float(self.balance_sheet.at['Inventories', 'Year2'])) / Decimal(float(self.income_statement.at['Cost of Goods Sold', 'Year2'])) * 365 * -1)
+        self.inv_days_1 = format_fixed_cost(Decimal(float(self.balance_sheet.at['Inventories', 'Year1'])) / Decimal(float(self.income_statement.at['Cost of Goods Sold', 'Year1'])) * 365 * -1)
+        self.inv_days_0 = format_fixed_cost(Decimal(float(self.balance_sheet.at['Inventories', 'Year0'])) / Decimal(float(self.income_statement.at['Cost of Goods Sold', 'Year0'])) * 365 * -1)
 
         # Payable Days
-        self.payable_days_2 = format_fixed_cost(float(self.balance_sheet.at['Trade and Other Payables', 'Year2']) / float(self.income_statement.at['Cost of Goods Sold', 'Year2']) * 365 * -1)
-        self.payable_days_1 = format_fixed_cost(float(self.balance_sheet.at['Trade and Other Payables', 'Year1']) / float(self.income_statement.at['Cost of Goods Sold', 'Year1']) * 365 * -1)
-        self.payable_days_0 = format_fixed_cost(float(self.balance_sheet.at['Trade and Other Payables', 'Year0']) / float(self.income_statement.at['Cost of Goods Sold', 'Year0']) * 365 * -1)
+        self.payable_days_2 = format_fixed_cost(Decimal(float(self.balance_sheet.at['Trade and Other Payables', 'Year2'])) / Decimal(float(self.income_statement.at['Cost of Goods Sold', 'Year2'])) * 365 * -1)
+        self.payable_days_1 = format_fixed_cost(Decimal(float(self.balance_sheet.at['Trade and Other Payables', 'Year1'])) / Decimal(float(self.income_statement.at['Cost of Goods Sold', 'Year1'])) * 365 * -1)
+        self.payable_days_0 = format_fixed_cost(Decimal(float(self.balance_sheet.at['Trade and Other Payables', 'Year0'])) / Decimal(float(self.income_statement.at['Cost of Goods Sold', 'Year0'])) * 365 * -1)
 
         # Income Tax Payable (Percent of Taxes) (Days)
-        self.inc_tax_pay_2 = format_decimals(float(self.balance_sheet.at['Income Taxes Payable', 'Year2']) / float(self.income_statement.at['Taxes', 'Year2']) * -1)
-        self.inc_tax_pay_1 = format_decimals(float(self.balance_sheet.at['Income Taxes Payable', 'Year1']) / float(self.income_statement.at['Taxes', 'Year1']) * -1)
-        self.inc_tax_pay_0 = format_decimals(float(self.balance_sheet.at['Income Taxes Payable', 'Year0']) / float(self.income_statement.at['Taxes', 'Year0']) * -1)
+        self.inc_tax_pay_2 = format_decimals(Decimal(float(self.balance_sheet.at['Income Taxes Payable', 'Year2'])) / Decimal(float(self.income_statement.at['Taxes', 'Year2'])) * -1)
+        self.inc_tax_pay_1 = format_decimals(Decimal(float(self.balance_sheet.at['Income Taxes Payable', 'Year1'])) / Decimal(float(self.income_statement.at['Taxes', 'Year1'])) * -1)
+        self.inc_tax_pay_0 = format_decimals(Decimal(float(self.balance_sheet.at['Income Taxes Payable', 'Year0'])) / Decimal(float(self.income_statement.at['Taxes', 'Year0'])) * -1)
 
         # Long Term Debt
-        self.assumptions.at['Long Term Debt', 'Year2'] = float(self.balance_sheet.at['Long-Term Debt', 'Year2'])
+        self.assumptions.at['Long Term Debt', 'Year2'] = Decimal(float(self.balance_sheet.at['Long-Term Debt', 'Year2']))
         self.long_term_debt_2 = format_fixed_cost(self.assumptions.at['Long Term Debt', 'Year2'])
 
-        self.assumptions.at['Long Term Debt', 'Year1'] = float(self.balance_sheet.at['Long-Term Debt', 'Year1'])
+        self.assumptions.at['Long Term Debt', 'Year1'] = Decimal(float(self.balance_sheet.at['Long-Term Debt', 'Year1']))
         self.long_term_debt_1 = format_fixed_cost(self.assumptions.at['Long Term Debt', 'Year1'])
 
-        self.assumptions.at['Long Term Debt', 'Year0'] = float(self.balance_sheet.at['Long-Term Debt', 'Year0'])
+        self.assumptions.at['Long Term Debt', 'Year0'] = Decimal(float(self.balance_sheet.at['Long-Term Debt', 'Year0']))
         self.long_term_debt_0 = format_fixed_cost(self.assumptions.at['Long Term Debt', 'Year0'])
 
         # Common Share Capital
-        self.assumptions.at['Common Share Capital', 'Year2'] = float(self.balance_sheet.at['Common Stock and Additional Paid-In Capital', 'Year2'])
+        self.assumptions.at['Common Share Capital', 'Year2'] = Decimal(float(self.balance_sheet.at['Common Stock and Additional Paid-In Capital', 'Year2']))
         self.common_share_cap_2 = format_fixed_cost(self.assumptions.at['Common Share Capital', 'Year2'])
 
-        self.assumptions.at['Common Share Capital', 'Year1'] = float(self.balance_sheet.at['Common Stock and Additional Paid-In Capital', 'Year1'])
+        self.assumptions.at['Common Share Capital', 'Year1'] = Decimal(float(self.balance_sheet.at['Common Stock and Additional Paid-In Capital', 'Year1']))
         self.common_share_cap_1 = format_fixed_cost(self.assumptions.at['Common Share Capital', 'Year1'])
 
-        self.assumptions.at['Common Share Capital', 'Year0'] = float(self.balance_sheet.at['Common Stock and Additional Paid-In Capital', 'Year0'])
+        self.assumptions.at['Common Share Capital', 'Year0'] = Decimal(float(self.balance_sheet.at['Common Stock and Additional Paid-In Capital', 'Year0']))
         self.common_share_cap_0 = format_fixed_cost(self.assumptions.at['Common Share Capital', 'Year0'])
+        # Dividend Payout (Percent of Net Income)
+        self.div_payout_ratio_2 = format_decimals(Decimal(float(self.income_statement.at['Common Dividends', 'Year2'])) / Decimal(float(self.income_statement.at['Net Income', 'Year2'])))
+        self.div_payout_ratio_1 = format_decimals(Decimal(float(self.income_statement.at['Common Dividends', 'Year1'])) / Decimal(float(self.income_statement.at['Net Income', 'Year1'])))
+        self.div_payout_ratio_0 = format_decimals(Decimal(float(self.income_statement.at['Common Dividends', 'Year0'])) / Decimal(float(self.income_statement.at['Net Income', 'Year0'])))
 
-        # Dividend Payout Ratio
-        self.div_payout_ratio_2 = format_decimals(float(self.income_statement.at['Common Dividends', 'Year2']) / float(self.income_statement.at['Net Income', 'Year2']))
-        self.div_payout_ratio_1 = format_decimals(float(self.income_statement.at['Common Dividends', 'Year1']) / float(self.income_statement.at['Net Income', 'Year1']))
-        self.div_payout_ratio_0 = format_decimals(float(self.income_statement.at['Common Dividends', 'Year0']) / float(self.income_statement.at['Net Income', 'Year0']))
-
-    
         
 
          
@@ -272,7 +275,7 @@ class Analysis:
             df.at[row_label, column_label] = value
 
         
-        print(df) #This function assigns the values correctly
+        #print(df) #This function assigns the values correctly
     
     
     def upload_to_database(self, df, table_name):
@@ -280,9 +283,9 @@ class Analysis:
         df.to_sql(table_name, con=self.engine, if_exists='replace', index=False) # append or replace?
         # Print the DataFrame to check its content
         print("Uploading DataFrame to database:")
-        print(df)
+        #print(df)
       
-        '''This does not upload the correct values'''
+        
         
 
         
@@ -314,12 +317,12 @@ def main():
     analysis.statements()
 
     # # Fetch data from analysis
-    # data = analysis.populated_assumptions_historical() # dont know if that works?
+    #data = analysis.populated_assumptions_historical() # dont know if that works?
     
     # Perform historical and future assumptions population
     analysis.populate_assumptions_historical()
     # analysis.populate_assumptions_future()
-    analysis.upload_to_database(analysis.assumptions, 'assumptions') # works but inserts zero except for long ther debt , common share capital
+    #analysis.upload_to_database(analysis.assumptions, 'assumptions') # works but inserts zero except for long ther debt , common share capital
     #analysis.clear_database()
     
     
@@ -380,7 +383,7 @@ def main():
     analysis.assign_values(analysis.assumptions, values_dict)
 
     # Print the assumptions DataFrame
-    #print(analysis.assumptions)
+    print(analysis.assumptions)
     #print(analysis.assumptions.info())
     #print(analysis.assumptions.columns)
     #print(analysis.assumptions.index)
@@ -390,7 +393,9 @@ def main():
 
 if __name__ == '__main__':
     main()
+ 
 
+    
 ===================================================================================================
 
 This is the output when I print the df: 
