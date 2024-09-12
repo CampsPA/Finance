@@ -1,27 +1,20 @@
-'''THIS VERSION WORKS!!!'''
 
 
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from sqlalchemy import create_engine, Column, String, Integer, DECIMAL
+from sqlalchemy import create_engine, Column, String, Integer, DECIMAL,Numeric
 from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker
-#import psycopg2
-#from psycopg2 import sql
+import psycopg2
+from psycopg2 import sql
 from decimal import Decimal
 
 
 
-# Create the engine
-engine = create_engine('sqlite:///test.db')
-
-
 Base = declarative_base()
 
-# Create a session
-Session = sessionmaker(bind=engine)
-session = Session()
+
 
 class Assumptions(Base):
     __tablename__ = 'assumptions'
@@ -35,16 +28,90 @@ class Assumptions(Base):
     year3 = Column(DECIMAL(10,2))
     year4 = Column(DECIMAL(10,2))
     year5 = Column(DECIMAL(10,2))
+    
+db_params = {
+    'dbname': 'postgres',
+    'user': 'Campospa',
+    'password': '2883',
+    'host': 'localhost',
+    'port': '5432'
+}
 
 
-# # Create all tables
-# Base.metadata.create_all(engine)
+#Connect to the default database to create a new database
+conn = psycopg2.connect(**db_params)
+conn.autocommit = True
+cur = conn.cursor()
 
-# # Create a configured "Session" class
-# Session = sessionmaker(bind=engine)
+'''Comment tgis out once database and table shave been created '''
+# Create a new database
+new_db_name = 'Statements'
+cur.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(new_db_name)))
 
-# # Create a session
-# session = Session()
+# Close the connection to the default database
+cur.close()
+conn.close()
+
+# Connect to the new database
+db_params['dbname'] = new_db_name
+conn = psycopg2.connect(**db_params)
+cur = conn.cursor()
+
+
+
+# Create table assumptions
+cur.execute('''
+            CREATE TABLE assumptions (
+    metrics TEXT PRIMARY KEY,
+    year_2 NUMERIC(10,2),
+    year_1 NUMERIC(10,2),
+    year0 NUMERIC(10,2),
+    year1 NUMERIC(10,2),
+    year2 NUMERIC(10,2),
+    year3 NUMERIC(10,2),
+    year4 NUMERIC(10,2),
+    year5 NUMERIC(10,2)
+);
+            ''')
+
+
+
+# Commit changes 
+conn.commit()
+
+# insert data
+insert_query = '''
+    INSERT INTO assumptions (metrics, year_2, year_1, year0, year1, year2, year3, year4, year5)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+'''
+
+values = [
+('Days in Period', 365, 365, 365, 365, 365, 365, 365, 365),
+('Sales Growth', None, None, None, None, None, None, None, None),
+('Gross Margin', None, None, None, None, None, None, None, None),
+('Distribution Expense (Percent of Sales)', None, None, None, None, None, None, None, None),
+('Marketing & Admin Expense (Fixed Cost)', None, None, None, None, None, None, None, None),
+('Research Expense (Percent of Sales)', None, None, None, None, None, None, None, None),
+('Depreciation (Percent of Sales)', None, None, None, None, None, None, None, None),
+('Long-Term Debt Interest Rate (Average Debt)', None, None, None, None, None, None, None, None),
+('Tax Rate (Percent of EBT)', None, None, None, None, None, None, None, None),
+('Capital Asset Turnover Ratio                           (x)', None, None, None, None, None, None, None, None),
+('Receivable Days (Sales Basis)                     (Days)', None, None, None, None, None, None, None, None),
+('Inventory Days (COGS Basis)                       (Days)', None, None, None, None, None, None, None, None),
+('Payable Days (COGS Basis)                          (Days)', None, None, None, None, None, None, None, None),
+('Income Tax Payable (Percent of Taxes) (Days)', None, None, None, None, None, None, None, None),
+('Long Term Debt', None, None, None, None, None, None, None, None),
+('Common Share Capital', None, None, None, None, None, None, None, None),
+('Dividend Payout Ratio ', None, None, None, None, None, None, None, None)
+]
+
+
+cur.executemany(insert_query, values)
+
+#Commit changes and close the connection
+conn.commit()
+cur.close()
+conn.close()
     
 
 
@@ -57,12 +124,12 @@ class Analysis:
         self.balance_sheet = pd.DataFrame()
         self.cash_flow = pd.DataFrame()
         self.assumptions = pd.DataFrame()
-        #self.years =  ['Year-1', 'Year-2', 'Year-3', 'Year-4', 'Year-5']
+        self.years =  ['Year1', 'Year2', 'Year3', 'Year4', 'Year5']
         # add additional sheets
         self.working_capital = pd.DataFrame()
         self.capital_structure = pd.DataFrame()
-        self.engine = create_engine('sqlite:///test.db')
-        # self.engine = create_engine('postgresql://Campospa:2883@localhost/test')
+        #self.engine = create_engine('sqlite:///test.db')
+        self.engine = create_engine('postgresql://Campospa:2883@localhost/Statements')
         self.Session = sessionmaker(bind=self.engine)
         self.session = self.Session()
         
@@ -97,6 +164,7 @@ class Analysis:
             
         
         # Sales Growth
+        
         self.sg_year_1 = format_decimals(self.income_statement.at['Revenues', 'Year_1'] / self.income_statement.at['Revenues', 'Year_2'] - 1)
         self.sg_year_0 = format_decimals(self.income_statement.at['Revenues', 'Year0'] / self.income_statement.at['Revenues', 'Year_1'] - 1)
 
@@ -191,9 +259,7 @@ class Analysis:
     # Define the function to assign a value
     def assign_values(self, df, values_dict):
         for (row_label, column_label), value in values_dict.items():
-            df.at[row_label, column_label] = value
-
-
+            df.at[row_label, column_label] = float(value) 
 
     
     def upload_to_database(self):
@@ -214,6 +280,126 @@ class Analysis:
 
         # Commit changes to the database
         self.session.commit()
+
+
+    def populate_assumptions_future(self):
+        # Define metrics that should be formatted as percentages and raw numbers
+        self.percentage_metrics = [
+            'Sales Growth', 
+            'Gross Margin',
+            'Distribution Expense (Percent of Sales)',
+            'Research Expense (Percent of Sales)',
+           'Depreciation (Percent of Sales)',
+           'Long-Term Debt Interest Rate (Average Debt)',
+           'Tax Rate (Percent of EBT)', 
+           'Income Tax Payable (Percent of Taxes) (Days)',
+           'Dividend Payout Ratio '
+         ]
+    
+        self.raw_number_metrics = [
+            'Marketing & Admin Expense (Fixed Cost)',
+            'Capital Asset Turnover Ratio                           (x)',
+           'Receivable Days (Sales Basis)                     (Days)',
+           'Inventory Days (COGS Basis)                       (Days)',
+           'Payable Days (COGS Basis)                          (Days)',
+           'Long Term Debt',
+           'Common Share Capital'
+        ]
+
+        # Function to get user input
+        def get_user_input(prompt):
+            while True:
+                try:
+                    value = float(input(prompt))
+                    return value
+                except ValueError:
+                    print("Invalid input. Please enter a numerical value.")
+
+            
+            # Function to format values
+        def format_value(value, is_decimal=True):
+            if is_decimal:
+                return round(Decimal(value) * 100, 2)
+            else:
+                return float(round(Decimal(value), 2))
+
+        for metrics in self.percentage_metrics:
+            same_value = input(f"Do you want to enter the same value for all years for {metrics}? (yes/no): ").strip().lower()
+            
+            if same_value == 'yes':
+                value = get_user_input(f"Enter {metrics} (as a decimal, e.g., 0.06 for 6%): ")
+                formatted_value = format_value(value, is_decimal=True)
+                self.assumptions.loc[metrics, self.years] = float(formatted_value)
+            else:
+                for year in self.years:
+                    prompt = f"Enter {metrics} for {year} (as a decimal, e.g., 0.06 for 6%): "
+                    value = get_user_input(prompt)
+                    self.assumptions.at[metrics, year] = format_value(value, is_decimal=True)
+
+        for metric in self.raw_number_metrics:
+            same_value = input(f"Do you want to enter the same value for all years for {metric}? (yes/no): ").strip().lower()
+            
+            if same_value == 'yes':
+                value = get_user_input(f"Enter {metric}: ")
+                formatted_value = format_value(value, is_decimal=False)
+                self.assumptions.loc[metric, self.years] = formatted_value
+            else:
+                for year in self.years:
+                    prompt = f"Enter {metric} for {year}: "
+                    value = get_user_input(prompt)
+                    self.assumptions.at[metric, year] = format_value(value, is_decimal=False)
+
+    ##################################################################################################################
+
+    # Modify this to insert values into the database
+    def upload_to_database_future(self):
+        for metrics, row in self.assumptions.iterrows():                                                                            
+            year_values = {f"year(i+1)": Decimal(row[year]) if row[year] else None for i, year in enumerate(self.years)}
+
+            percentage_values = {k.replace(" ", "_").lower(): Decimal(v) if v else None 
+                             for k, v in row.items() if metrics in self.percentage_metrics}
+            raw_number_values = {k.replace(" ", "_").lower(): Decimal(v) if v else None 
+                             for k, v in row.items() if metrics in self.raw_number_metrics}
+        
+
+            # Ensure Days in Period is inserted correctly (handle it like the first method)
+            if 'Days in Period' in row and row['Days in Period']:
+                raw_number_values['Days in Period'] = Decimal(row['Days in Period'])
+            else:
+                raw_number_values['Days in Period'] = None
+
+            # Update or create a record in the database
+            existing_record = self.session.query(Assumptions).filter_by(metrics=metrics).first()
+
+
+            if existing_record:
+                for column_label, value in {**year_values, **percentage_values, **raw_number_values}.items():
+                    setattr(existing_record, column_label, value)
+            else:
+                # Create new record
+                new_record = Assumptions(
+                    metrics=metrics,
+                    **year_values,
+                    **percentage_values,
+                    **raw_number_values
+                )
+                self.session.add(new_record)
+                
+
+        # Commit changes to the database
+        self.session.commit()
+
+    #######################################################################################################
+
+    def clear_database(self):
+        with self.Session() as session:
+            # Iterate over all tables and delete their contents
+            for table in Base.metadata.sorted_tables:
+                session.execute(table.delete())
+            # Commit the transaction
+            session.commit()
+        print("Database cleared successfully.")
+
        
     
         
@@ -230,6 +416,7 @@ def main():
     
     # Perform historical and future assumptions population
     analysis.populate_assumptions_historical()
+    # analysis.clear_database()
      
    
 
@@ -286,6 +473,9 @@ def main():
 
     analysis.assign_values(analysis.assumptions, values_dict)
     # analysis.upload_to_database()
+    analysis.populate_assumptions_future()
+    analysis.upload_to_database_future()
+    
 
 
     # analysis.assign_values(values_dict)
@@ -300,4 +490,3 @@ if __name__ == '__main__':
 
 
 
-    
